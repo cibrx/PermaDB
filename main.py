@@ -3,6 +3,7 @@ import os
 import subprocess
 from cache import CacheDB
 import os
+import json 
 
 global permadb
 permadb = None
@@ -238,4 +239,24 @@ class PermaDB:
         valueList = []
         for key,value in result:
             valueList.append(value)
-        return valueList            
+        return valueList
+
+    def object_get(self, key):
+        if self.memory and self.cache.has(key):
+            return self.cache.object_get(key)
+        cursor = self.db.cursor()
+        cursor.execute('SELECT value FROM perma WHERE key = ?', (key,))
+        result = cursor.fetchone()
+        self.db.commit()
+        cursor.close()
+        return json.loads(result[0]) if result else None
+    def object_set(self, key, value):
+            if self.memory != False:
+                self.cache.object_set(key, value)
+            if isinstance(value, bool):
+                value = str(value)
+            cursor = self.db.cursor()
+            cursor.execute('INSERT OR REPLACE INTO perma (key, value) VALUES (?, ?)', (key, json.dumps(value)))
+            self.db.commit()
+            cursor.close()
+            return value
